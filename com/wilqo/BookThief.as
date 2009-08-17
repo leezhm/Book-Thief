@@ -22,7 +22,7 @@ package com.wilqo {
     private const LINE_ANGLE:Number = 45;
     private const MASK_COLOR:Number = 0xFF0000;
     private const MASK_OPACITY:Number = .5;
-    private const BACK_COLOR:Number = 0x7d88be;
+    private const BACK_COLOR:Number = 0x666666;
     private const BACK_OPACITY:Number = 1;
     private const PEEL_RATE:Number = 3;
     
