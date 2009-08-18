@@ -7,6 +7,7 @@ karl@wilqo.com
 */
 
 package com.wilqo {
+  import caurina.transitions.Tweener;
   import flash.display.Sprite;
   import flash.display.MovieClip;
   import flash.events.Event;
@@ -25,6 +26,8 @@ package com.wilqo {
     private const BACK_COLOR:Number = 0x666666;
     private const BACK_OPACITY:Number = 1;
     private const PEEL_RATE:Number = 3;
+    private const TUG_DISTANCE:Number = 30;
+    private const TUG_BASE:Object = {time:1,transition:"linear",onUpdate:movePages}
     
     private const DEBUG_MODE:Boolean = false;
     private const LINE_OPACITY:Number = 0;
@@ -34,6 +37,8 @@ package com.wilqo {
     private var halfPage:Number;
     private var peelInterval:Number;
     private var curl:Number = 20;
+    private var tugInterval:Number;
+    private var tugActive:Boolean = true;
     
     private var url:String;
     private var source:MovieClip;
@@ -59,8 +64,7 @@ package com.wilqo {
       drawBack();
       positionLine();
       setMasks();
-      addChild(line);
-      addEvents();
+      init();
     }
     
     private function fixSource(mc:MovieClip) {
@@ -114,9 +118,7 @@ package com.wilqo {
       line.addChild(sourceMask);
     }
     
-    private function positionLine():void {
-      line.rotation = LINE_ANGLE;
-    }
+    private function positionLine():void { line.rotation = LINE_ANGLE; }
     
     private function drawBack():void {
       backContainer = new Sprite();
@@ -135,33 +137,39 @@ package com.wilqo {
       }
     }
     
-    private function startPeel(e:Event):void {
+    private function startPeel(e:Event=null):void {
       dispatchEvent(new Event(PEEL_START));
       addEventListener(MouseEvent.MOUSE_UP,stopPeel);
-      addEventListener(MouseEvent.MOUSE_MOVE,movePeel);
+      addEventListener(MouseEvent.MOUSE_MOVE,dragPeel);
+      clearInterval(tugInterval);
+      Tweener.removeTweens(line);
     }
     
-    private function stopPeel(e:Event):void {
+    private function stopPeel(e:Event=null):void {
       dispatchEvent(new Event(PEEL_STOP));
       removeEventListener(MouseEvent.MOUSE_UP,stopPeel);
-      removeEventListener(MouseEvent.MOUSE_MOVE,movePeel);
-      peelInterval = line.y>halfPage ? setInterval(completePeel,10) : setInterval(cancelPeel,10);
+      removeEventListener(MouseEvent.MOUSE_MOVE,dragPeel);
+      line.y>halfPage ? completePeel() : cancelPeel();
     }
     
-    private function doCurl(e:Event):void {
-      line.y += (curl+line.y)/PEEL_RATE;
-      movePages();
-      if((curl-line.y)<1) removeEventListener(Event.ENTER_FRAME,doCurl);
+    private function doCurl(e:Event=null):void { Tweener.addTween(line,{y:curl,time:(curl+line.y)/150,transition:"linear",onUpdate:movePages}); }
+    private function setTugInterval():void { tugInterval = setInterval(tugCurl,2500); }
+    private function tugCurl():void { clearInterval(tugInterval); tugForward(); }
+    private function tugForward():void { Tweener.addTween(line, {base:TUG_BASE, y:TUG_DISTANCE, onComplete:tugBack}); }
+    private function tugBack():void { Tweener.addTween(line, {base:TUG_BASE, y:curl,onComplete:setTugInterval}); }
+    
+    private function dragPeel(e:Event):void {
+      movePeel(mouseY);
     }
     
-    private function movePeel(e:Event):void {
-      line.y = mouseY;
-      if(line.y>spine) {
-        line.y = spine;
-      } else if(line.y<edge) {
-        line.y = edge;
+    private function movePeel(y:Number,comp:Function=null):void {
+      var cy:Number = y;
+      if(cy>spine) {
+        cy = spine;
+      } else  if(cy<curl) {
+        cy = curl;
       }
-      movePages();
+      Tweener.addTween(line,{y:cy,time:.5,onUpdate:movePages,onComplete:comp});
     }
     
     private function movePages():void {
@@ -173,33 +181,32 @@ package com.wilqo {
     }
     
     private function completePeel():void {
-      line.y += (spine-line.y)/PEEL_RATE;
-      if((spine-line.y)<1) {
-        back.alpha = 0;
+      movePeel(spine,function(){
         dispatchEvent(new Event(PEEL_COMPLETE));
-        clearInterval(peelInterval);
-      }
-      movePages();
+      });
     }
     
     private function cancelPeel():void {
-      line.y -= (line.y-curl)/PEEL_RATE;
-      if((line.y-curl)<1) {
-        line.y = curl;
+      movePeel(curl,function(){
+        setTugInterval();
         dispatchEvent(new Event(PEEL_CANCELLED));
-        clearInterval(peelInterval);
-      }
-      movePages();
+      });
     }
 
     private function addEvents():void {
-      addEventListener(Event.ENTER_FRAME,doCurl);
       hotspot.addEventListener(MouseEvent.MOUSE_DOWN,startPeel);
       addEventListener(BookThief.PEEL_COMPLETE,onPeelComplete);
     }
     
     private function onPeelComplete(e:Event):void {
       stage.addEventListener(MouseEvent.CLICK,function(){navigateToURL(new URLRequest(url));});
+    }
+    
+    private function init():void {
+      addChild(line);
+      doCurl();
+      addEvents();
+      setTugInterval();
     }
     
   }
