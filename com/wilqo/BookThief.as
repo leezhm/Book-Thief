@@ -37,8 +37,10 @@ package com.wilqo {
     private var halfPage:Number;
     private var peelInterval:Number;
     private var curl:Number = 20;
+    private var revealDelay:Number;
+    private var tug:Boolean;
     private var tugInterval:Number;
-    private var tugActive:Boolean = true;
+    private var revealInterval:Number;
     
     private var url:String;
     private var source:MovieClip;
@@ -55,8 +57,10 @@ package com.wilqo {
     public static const PEEL_START:String = "peelStart";
     public static const PEEL_STOP:String = "peelStop";
     
-    public function BookThief(mc:MovieClip,url:String) {
+    public function BookThief(mc:MovieClip,url:String,tug:Boolean=true,delay:Number=0) {
       this.url=url;
+      this.tug=tug;
+      this.revealDelay=delay;
       fixSource(mc);
       setNumbers();
       drawLine();
@@ -153,7 +157,7 @@ package com.wilqo {
     }
     
     private function doCurl(e:Event=null):void { Tweener.addTween(line,{y:curl,time:(curl+line.y)/150,transition:"linear",onUpdate:movePages}); }
-    private function setTugInterval():void { tugInterval = setInterval(tugCurl,2500); }
+    private function setTugInterval():void { if(tug) tugInterval = setInterval(tugCurl,2500); }
     private function tugCurl():void { clearInterval(tugInterval); tugForward(); }
     private function tugForward():void { Tweener.addTween(line, {base:TUG_BASE, y:TUG_DISTANCE, onComplete:tugBack}); }
     private function tugBack():void { Tweener.addTween(line, {base:TUG_BASE, y:curl,onComplete:setTugInterval}); }
@@ -181,6 +185,7 @@ package com.wilqo {
     }
     
     private function completePeel():void {
+      clearInterval(revealInterval);
       movePeel(spine,function(){
         dispatchEvent(new Event(PEEL_COMPLETE));
       });
@@ -200,6 +205,13 @@ package com.wilqo {
     
     private function onPeelComplete(e:Event):void {
       stage.addEventListener(MouseEvent.CLICK,function(){navigateToURL(new URLRequest(url));});
+      clearInterval(tugInterval);
+    }
+    
+    private function setRevealDelay():void {
+      if(!revealDelay==0) {
+        revealInterval = setInterval(completePeel,revealDelay);
+      }
     }
     
     private function init():void {
@@ -207,6 +219,7 @@ package com.wilqo {
       doCurl();
       addEvents();
       setTugInterval();
+      setRevealDelay();
     }
     
   }
