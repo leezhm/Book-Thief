@@ -5,7 +5,8 @@ package {
   public class BookThiefExample extends Sprite {
     
     public function BookThiefExample() {
-      var stolen:BookThief = new BookThief(teddy,"http://www.wilqo.com",true,5000);
+      if(!linkURL) var linkURL:String = "http://github.com/karlbright";
+      var stolen:BookThief = new BookThief(teddy,linkURL,true,5000);
       addChild(stolen);
     }
     

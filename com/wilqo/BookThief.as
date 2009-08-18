@@ -23,7 +23,6 @@ package com.wilqo {
     private const LINE_ANGLE:Number = 45;
     private const MASK_COLOR:Number = 0xFF0000;
     private const MASK_OPACITY:Number = .5;
-    private const BACK_COLOR:Number = 0x666666;
     private const BACK_OPACITY:Number = 1;
     private const PEEL_RATE:Number = 3;
     private const TUG_DISTANCE:Number = 30;
@@ -41,6 +40,7 @@ package com.wilqo {
     private var tug:Boolean;
     private var tugInterval:Number;
     private var revealInterval:Number;
+    private var backColor:Number;
     
     private var url:String;
     private var source:MovieClip;
@@ -57,10 +57,12 @@ package com.wilqo {
     public static const PEEL_START:String = "peelStart";
     public static const PEEL_STOP:String = "peelStop";
     
-    public function BookThief(mc:MovieClip,url:String,tug:Boolean=true,delay:Number=0) {
+    public function BookThief(mc:MovieClip,url:String,tug:Boolean=true,delay:Number=0,backColor:Number=0x666666) {
       this.url=url;
+      this.backColor=backColor;
       this.tug=tug;
       this.revealDelay=delay;
+      
       fixSource(mc);
       setNumbers();
       drawLine();
@@ -68,6 +70,7 @@ package com.wilqo {
       drawBack();
       positionLine();
       setMasks();
+      
       init();
     }
     
@@ -127,7 +130,7 @@ package com.wilqo {
     private function drawBack():void {
       backContainer = new Sprite();
       back = new Sprite();
-      back.graphics.beginFill(BACK_COLOR,1);
+      back.graphics.beginFill(backColor,1);
       back.graphics.drawRect(-source.height,-source.width,source.height,source.width);
       back.graphics.endFill();
       addChild(backContainer);
@@ -145,6 +148,7 @@ package com.wilqo {
       dispatchEvent(new Event(PEEL_START));
       addEventListener(MouseEvent.MOUSE_UP,stopPeel);
       addEventListener(MouseEvent.MOUSE_MOVE,dragPeel);
+      clearInterval(revealInterval);
       clearInterval(tugInterval);
       Tweener.removeTweens(line);
     }
