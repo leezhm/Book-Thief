@@ -8,10 +8,13 @@ karl@wilqo.com
 
 package com.wilqo {
   import caurina.transitions.Tweener;
+  import flash.display.GradientType;
   import flash.display.Sprite;
   import flash.display.MovieClip;
   import flash.events.Event;
   import flash.events.MouseEvent;
+  import flash.filters.DropShadowFilter;
+  import flash.geom.Matrix;
   import flash.net.navigateToURL;
   import flash.net.URLRequest;
   import flash.utils.setInterval;
@@ -41,6 +44,8 @@ package com.wilqo {
     private var tugInterval:Number;
     private var revealInterval:Number;
     private var backColor:Number;
+    private var shadeColors:Array = [0x000000,0xFFFFFF];
+    private var shadeAlphas:Array = [1,1];
     
     private var url:String;
     private var source:MovieClip;
@@ -51,23 +56,29 @@ package com.wilqo {
     private var sourceMask:Sprite;
     private var backContainer:Sprite;
     private var back:Sprite;
+    private var shade:Sprite;
+    private var shadeMaskContainer:Sprite;
+    private var shadeMask:Sprite;
     
     public static const PEEL_COMPLETE:String = "peelComplete";
     public static const PEEL_CANCELLED:String = "peelCancelled";
     public static const PEEL_START:String = "peelStart";
     public static const PEEL_STOP:String = "peelStop";
     
-    public function BookThief(mc:MovieClip,url:String,tug:Boolean=true,delay:Number=0,backColor:Number=0x666666) {
+    public function BookThief(mc:MovieClip,url:String,tug:Boolean=true,delay:Number=0,backColor:Number=0x666666,sc:Array=null,sa:Array=null) {
       this.url=url;
       this.backColor=backColor;
       this.tug=tug;
       this.revealDelay=delay;
+      if(sc != null) this.shadeColors=sc;
+      if(sa != null) this.shadeAlphas=sa;
       
       fixSource(mc);
       setNumbers();
       drawLine();
       drawLineMasks();
       drawBack();
+      drawShade();
       positionLine();
       setMasks();
       
@@ -99,7 +110,6 @@ package com.wilqo {
       hotspot.graphics.lineStyle(1,0x000000);
       hotspot.graphics.beginFill(0x000000,0);
       hotspot.graphics.drawCircle(0,0,HOTSPOT_RADIUS);
-      line.addChild(hotspot);
     }
     
     private function drawLineMasks():void {
@@ -128,24 +138,52 @@ package com.wilqo {
     private function positionLine():void { line.rotation = LINE_ANGLE; }
     
     private function drawBack():void {
-      backContainer = new Sprite();
+      backContainer = new Sprite();      
       back = new Sprite();
       back.graphics.beginFill(backColor,1);
       back.graphics.drawRect(-source.height,-source.width,source.height,source.width);
       back.graphics.endFill();
+      
+      var backDropShadow:DropShadowFilter = new DropShadowFilter();
+      var backFilters:Array = new Array();
+      backFilters.push(backDropShadow);
+      backDropShadow.angle = -90;
+      backDropShadow.alpha = .5;
+      backDropShadow.color = 0x000000;
+      backDropShadow.blurY = backDropShadow.blurX = 8;
+      backDropShadow.distance = 2;
+      back.filters = backFilters;
+      
       addChild(backContainer);
       backContainer.addChild(back);
+    }
+    
+    private function drawShade():void {
+      shadeMaskContainer = new Sprite();
+      shadeMask = new Sprite();
+      shadeMask.graphics.beginFill(MASK_COLOR,MASK_OPACITY);
+      shadeMask.graphics.drawRect(-source.height,-source.width,source.height,source.width);
+      shadeMask.graphics.endFill();
+      addChild(shadeMaskContainer);
+      shadeMaskContainer.addChild(shadeMask);
+      
+      shade = new Sprite();
+      shade.graphics.beginGradientFill(GradientType.LINEAR,[0x000000,0xFFFFFF],[.3,0],[30,255]);
+      shade.graphics.drawRect(0,-(source.width*1.5),source.height,source.width*1.5);
+      shade.graphics.endFill();
+      line.addChild(shade);
     }
     
     private function setMasks():void {
       if(!DEBUG_MODE) {
         source.mask = sourceMask;
         back.mask = rightMask;
+        shade.mask = shadeMask;
       }
     }
     
     private function startPeel(e:Event=null):void {
-      dispatchEvent(new Event(PEEL_START));
+      dispatchEvent(new Event(PEEL_START,true));
       addEventListener(MouseEvent.MOUSE_UP,stopPeel);
       addEventListener(MouseEvent.MOUSE_MOVE,dragPeel);
       clearInterval(revealInterval);
@@ -154,7 +192,7 @@ package com.wilqo {
     }
     
     private function stopPeel(e:Event=null):void {
-      dispatchEvent(new Event(PEEL_STOP));
+      dispatchEvent(new Event(PEEL_STOP,true));
       removeEventListener(MouseEvent.MOUSE_UP,stopPeel);
       removeEventListener(MouseEvent.MOUSE_MOVE,dragPeel);
       line.y>halfPage ? completePeel() : cancelPeel();
@@ -185,20 +223,23 @@ package com.wilqo {
       backContainer.y = line.y;
       backContainer.rotation = 90+((LINE_ANGLE*2)*((line.y-spine)/source.height));
       back.x = -(edge-line.y);
+      shadeMaskContainer.y = line.y;
+      shadeMaskContainer.rotation = 90+((LINE_ANGLE*2)*((line.y-spine)/source.height));
+      shadeMask.x = -(edge-line.y);
       line.rotation = LINE_ANGLE*(line.y+spine)/source.height;
     }
     
     private function completePeel():void {
       clearInterval(revealInterval);
       movePeel(spine,function(){
-        dispatchEvent(new Event(PEEL_COMPLETE));
+        dispatchEvent(new Event(PEEL_COMPLETE,true));
       });
     }
     
     private function cancelPeel():void {
       movePeel(curl,function(){
         setTugInterval();
-        dispatchEvent(new Event(PEEL_CANCELLED));
+        dispatchEvent(new Event(PEEL_CANCELLED,true));
       });
     }
 
@@ -208,6 +249,7 @@ package com.wilqo {
     }
     
     private function onPeelComplete(e:Event):void {
+      back.visible = false;
       stage.addEventListener(MouseEvent.CLICK,function(){navigateToURL(new URLRequest(url));});
       clearInterval(tugInterval);
     }
@@ -220,6 +262,7 @@ package com.wilqo {
     
     private function init():void {
       addChild(line);
+      line.addChild(hotspot);
       doCurl();
       addEvents();
       setTugInterval();
